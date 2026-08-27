@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Activity, BrainCircuit, Radio, Upload } from "lucide-react";
-import { analyzeVideo, getHealth, telemetryPointsToRadar } from "../../lib/api";
+import { getHealth, telemetryPointsToRadar } from "../../lib/api";
 import { MOCK_TELEMETRY, type HealthResponse, type Telemetry, type TelemetryPoint } from "../../lib/types";
 import type { SampleMatch } from "../../lib/sample-matches";
 import { PitchRadar, type RadarToggles } from "../radar/PitchRadar";
@@ -49,18 +49,17 @@ export function CourtSenseShell() {
     demoRequestRef.current?.abort();
     const controller = new AbortController();
     demoRequestRef.current = controller;
-    setActiveDemo(sample); setActiveVideoUrl(sample.videoUrl); setCurrentTime(0); setAnalyzingDemoId(sample.id); setDemoError(""); setTelemetry(MOCK_TELEMETRY);
+    setActiveDemo(sample); setActiveVideoUrl(sample.annotatedUrl); setCurrentTime(0); setAnalyzingDemoId(sample.id); setDemoError(""); setTelemetry({ fps: 25, frames: [], players: [] });
     try {
-      const localResponse = await fetch(sample.videoUrl, { signal: controller.signal });
-      if (!localResponse.ok) throw new Error(`Could not load ${sample.title}.`);
-      const blob = await localResponse.blob();
-      const file = new File([blob], sample.fileName, { type: blob.type || "video/mp4" });
-      const analysis = await analyzeVideo(file, controller.signal);
+      const telemetryResponse = await fetch(sample.telemetryUrl, { cache: "no-store", signal: controller.signal });
+      if (!telemetryResponse.ok) throw new Error(`Could not load tracking data for ${sample.title}.`);
+      const points: unknown = await telemetryResponse.json();
+      if (!Array.isArray(points)) throw new Error(`Tracking data for ${sample.title} is invalid.`);
       if (demoRequestRef.current !== controller) return;
-      setTelemetry(telemetryPointsToRadar(analysis.telemetry));
+      setTelemetry(telemetryPointsToRadar(points as TelemetryPoint[]));
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
-      setDemoError(error instanceof Error ? error.message : "Live analysis is unavailable; raw demo playback is still ready.");
+      setDemoError(error instanceof Error ? error.message : "Precomputed tracking data is unavailable; annotated playback is still ready.");
     } finally {
       if (demoRequestRef.current === controller) setAnalyzingDemoId(undefined);
     }

@@ -41,7 +41,7 @@ function centroid(points: PlayerTelemetry[]) {
 function playersAt(telemetry: Telemetry | undefined, time: number) {
   const frames = telemetry?.frames;
   if (!frames?.length) {
-    const base = telemetry?.players?.length ? telemetry.players : fallback;
+    const base = telemetry ? (telemetry.players ?? []) : fallback;
     return base.map((player) => ({ ...player,
       x: clamp(player.x + Math.sin(time / 3 + Number(player.id)) * .35, 0, 105),
       y: clamp(player.y + Math.cos(time / 3 + Number(player.id)) * .2, 0, 68),
