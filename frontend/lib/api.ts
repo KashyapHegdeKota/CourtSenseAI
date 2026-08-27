@@ -37,6 +37,7 @@ export function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
 
 export function normalizeOutputVideoUrl(path?: string): string | undefined {
   if (!path) return undefined;
+  if (path.startsWith("https://")) return path;
   try {
     const url = new URL(path, `${API_BASE}/`);
     if (url.protocol === "http:") {
