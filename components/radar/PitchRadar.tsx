@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { PlayerTelemetry, Telemetry, TelemetryFrame } from "../../lib/types";
+import type { PlayerTelemetry, Telemetry } from "../../lib/types";
 
 export type RadarToggles = { hulls: boolean; ids: boolean; vectors: boolean; heatmap: boolean };
 type Props = { telemetry?: Telemetry; currentTime?: number; toggles?: RadarToggles; className?: string };
@@ -38,8 +38,6 @@ function centroid(points: PlayerTelemetry[]) {
   const count = Math.max(points.length, 1);
   return { x: points.reduce((sum, point) => sum + point.x, 0) / count, y: points.reduce((sum, point) => sum + point.y, 0) / count };
 }
-function frameTime(frame: TelemetryFrame, fps: number) { return frame.time_sec ?? (frame.frame ?? 0) / fps; }
-
 function playersAt(telemetry: Telemetry | undefined, time: number) {
   const frames = telemetry?.frames;
   if (!frames?.length) {
@@ -50,25 +48,15 @@ function playersAt(telemetry: Telemetry | undefined, time: number) {
     }));
   }
   const fps = telemetry?.fps ?? 25;
-  let rightIndex = frames.findIndex((frame) => frameTime(frame, fps) >= time);
-  if (rightIndex < 0) rightIndex = frames.length - 1;
-  const left = frames[Math.max(0, rightIndex - 1)];
-  const right = frames[rightIndex];
-  const leftTime = frameTime(left, fps), rightTime = frameTime(right, fps);
-  const mix = rightTime === leftTime ? 0 : clamp((time - leftTime) / (rightTime - leftTime), 0, 1);
-  const nextPlayers = new Map(right.players.map((player) => [String(player.id), player]));
-  return left.players.map((player) => {
-    const target = nextPlayers.get(String(player.id)) ?? player;
-    return { ...player, x: player.x + (target.x - player.x) * mix, y: player.y + (target.y - player.y) * mix,
-      speed_kmh: player.speed_kmh + (target.speed_kmh - player.speed_kmh) * mix,
-      distance_m: player.distance_m + (target.distance_m - player.distance_m) * mix };
-  });
+  const currentFrame = Math.floor(time * fps);
+  return frames.find((frame) => frame.frame === currentFrame)?.players ?? [];
 }
 
 export function PitchRadar({ telemetry, currentTime = 0, toggles = { hulls: true, ids: true, vectors: false, heatmap: false }, className }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const timeRef = useRef(currentTime);
-  timeRef.current = currentTime;
+
+  useEffect(() => { timeRef.current = currentTime; }, [currentTime]);
 
   useEffect(() => {
     const canvas = canvasRef.current, context = canvas?.getContext("2d");
