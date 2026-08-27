@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Activity, BrainCircuit, FileVideo, Radio, Upload, X } from "lucide-react";
 import { analyzeVideo, getHealth, resolveBackendUrl, telemetryPointsToRadar } from "../../lib/api";
 import { MOCK_TELEMETRY, type HealthResponse, type Telemetry } from "../../lib/types";
+import type { SampleMatch } from "../../lib/sample-matches";
 import { PitchRadar, type RadarToggles } from "../radar/PitchRadar";
 import { EventSearch } from "../search/EventSearch";
 import { TelemetryPanel } from "../telemetry/TelemetryPanel";
 import { BroadcastPlayer } from "./BroadcastPlayer";
+import { SampleMatchesDrawer } from "./SampleMatchesDrawer";
 
 const toggleLabels: Array<[keyof RadarToggles, string]> = [
   ["hulls", "Convex hulls"], ["ids", "Player IDs"], ["vectors", "Speed vectors"], ["heatmap", "Heatmap layer"],
@@ -24,15 +26,41 @@ export function CourtSenseShell() {
   const [video, setVideo] = useState<string>();
   const [telemetry, setTelemetry] = useState<Telemetry>(MOCK_TELEMETRY);
   const [currentTime, setCurrentTime] = useState(0);
+  const [activeDemo, setActiveDemo] = useState<SampleMatch>();
+  const [analyzingDemoId, setAnalyzingDemoId] = useState<string>();
+  const [demoError, setDemoError] = useState("");
+  const demoRequestRef = useRef<AbortController | null>(null);
   const [toggles, setToggles] = useState<RadarToggles>({ hulls: true, ids: true, vectors: false, heatmap: false });
 
   const refreshHealth = useCallback(() => {
     getHealth().then(setHealth).catch(() => setHealth(null)).finally(() => setHealthChecked(true));
   }, []);
-  useEffect(() => { refreshHealth(); const timer = window.setInterval(refreshHealth, 30000); return () => window.clearInterval(timer); }, [refreshHealth]);
+  useEffect(() => { refreshHealth(); const timer = window.setInterval(refreshHealth, 30000); return () => { window.clearInterval(timer); demoRequestRef.current?.abort(); }; }, [refreshHealth]);
+
+  const selectDemo = async (sample: SampleMatch) => {
+    demoRequestRef.current?.abort();
+    const controller = new AbortController();
+    demoRequestRef.current = controller;
+    setActiveDemo(sample); setVideo(sample.videoUrl); setCurrentTime(0); setAnalyzingDemoId(sample.id); setDemoError(""); setTelemetry(MOCK_TELEMETRY);
+    try {
+      const localResponse = await fetch(sample.videoUrl, { signal: controller.signal });
+      if (!localResponse.ok) throw new Error(`Could not load ${sample.title}.`);
+      const blob = await localResponse.blob();
+      const file = new File([blob], sample.fileName, { type: blob.type || "video/mp4" });
+      const analysis = await analyzeVideo(file, controller.signal);
+      if (demoRequestRef.current !== controller) return;
+      setTelemetry(telemetryPointsToRadar(analysis.telemetry));
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setDemoError(error instanceof Error ? error.message : "Live analysis is unavailable; raw demo playback is still ready.");
+    } finally {
+      if (demoRequestRef.current === controller) setAnalyzingDemoId(undefined);
+    }
+  };
 
   const handleFile = async (file?: File) => {
     if (!file || analyzing) return;
+    demoRequestRef.current?.abort(); setActiveDemo(undefined); setAnalyzingDemoId(undefined); setDemoError("");
     const localUrl = URL.createObjectURL(file);
     setVideo(localUrl); setAnalyzing(true); setUploadProgress(8); setUploadError("");
     const progressTimer = window.setInterval(() => setUploadProgress((value) => Math.min(92, value + Math.max(1, (92 - value) * .08))), 260);
@@ -64,6 +92,7 @@ export function CourtSenseShell() {
 
       <div className="mx-auto mt-7 max-w-[1500px]">
         <div className="mb-4 flex items-end justify-between gap-4"><div><p className="eyebrow">Match workspace / 01</p><h2 className="mt-1 text-2xl font-semibold">Broadcast analysis</h2></div><div className="flex items-center gap-2 text-xs text-slate-500"><Radio size={13} className="text-emerald-300"/> LIVE TELEMETRY · {clock(currentTime)}</div></div>
+        <SampleMatchesDrawer activeId={activeDemo?.id} analyzingId={analyzingDemoId} error={demoError} onSelect={(sample) => void selectDemo(sample)}/>
         <section className="studio-grid">
           <div className="panel p-5"><div className="panel-head"><div><p className="eyebrow">Broadcast feed</p><h3>Match footage <span className="live-dot"/></h3></div><span className="chip">ANALYSIS READY</span></div><BroadcastPlayer src={video} onTimeChange={setCurrentTime}/></div>
           <div className="panel p-5"><div className="panel-head"><div><p className="eyebrow">Spatial projection</p><h3><Activity size={16} className="inline text-cyan-300"/> Live tactical pitch</h3></div><span className="chip cyan">105 × 68 M</span></div>
@@ -72,7 +101,7 @@ export function CourtSenseShell() {
           </div>
         </section>
         <div className="mt-5"><TelemetryPanel telemetry={telemetry}/></div>
-        <EventSearch/>
+        <EventSearch presets={activeDemo?.quickSearches} contextLabel={activeDemo?.title}/>
       </div>
 
       {uploadOpen && <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="upload-title" onMouseDown={(event) => event.target === event.currentTarget && !analyzing && setUploadOpen(false)}><div className="upload-modal relative"><button aria-label="Close upload" disabled={analyzing} className="absolute right-4 top-4 text-slate-500 disabled:opacity-30" onClick={() => setUploadOpen(false)}><X size={18}/></button><FileVideo className="text-emerald-300" size={30}/><h3 id="upload-title" className="mt-4 text-xl">Upload match footage</h3>

@@ -6,10 +6,15 @@ import { Download, Loader2, Play, Search, X } from "lucide-react";
 import { getClipUrl, searchEvents } from "../../lib/api";
 import type { SearchResultItem } from "../../lib/types";
 
-const presets = ["corner kick", "tackle", "goalkeeper"];
+const defaultPresets = ["corner kick", "tackle", "goalkeeper"];
 const clock = (seconds: number) => `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 
-export function EventSearch() {
+interface Props {
+  presets?: string[];
+  contextLabel?: string;
+}
+
+export function EventSearch({ presets = defaultPresets, contextLabel }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -59,7 +64,7 @@ export function EventSearch() {
 
   return (
     <section className="panel mt-5 p-5">
-      <div className="flex items-center justify-between gap-4"><div><p className="eyebrow">Multimodal retrieval</p><h3>Find the moment</h3></div><span className="text-xs text-slate-500">VLM + FAISS · Top 3</span></div>
+      <div className="flex items-center justify-between gap-4"><div><p className="eyebrow">Multimodal retrieval</p><h3>Find the moment{contextLabel ? <span className="ml-2 text-xs font-normal text-emerald-300">· {contextLabel}</span> : null}</h3></div><span className="text-xs text-slate-500">VLM + FAISS · Top 3</span></div>
       <form className="search-box mt-4" onSubmit={(event) => { event.preventDefault(); void run(); }}>
         <Search size={17}/><input aria-label="Search match events" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search match events in natural language..."/>
         <button type="submit" disabled={loading || !query.trim()} className="text-xs font-semibold text-emerald-300 disabled:opacity-30">Search</button>
