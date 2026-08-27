@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Activity, BrainCircuit, FileVideo, Radio, Upload, X } from "lucide-react";
-import { analyzeVideo, getHealth, resolveBackendUrl, telemetryPointsToRadar } from "../../lib/api";
+import { analyzeVideo, getHealth, telemetryPointsToRadar } from "../../lib/api";
 import { MOCK_TELEMETRY, type HealthResponse, type Telemetry } from "../../lib/types";
 import type { SampleMatch } from "../../lib/sample-matches";
 import { PitchRadar, type RadarToggles } from "../radar/PitchRadar";
@@ -66,8 +66,10 @@ export function CourtSenseShell() {
     const progressTimer = window.setInterval(() => setUploadProgress((value) => Math.min(92, value + Math.max(1, (92 - value) * .08))), 260);
     try {
       const response = await analyzeVideo(file);
-      const backendVideo = resolveBackendUrl(response.output_video);
-      if (backendVideo) { setVideo(backendVideo); URL.revokeObjectURL(localUrl); }
+      if (response.output_video_url) {
+        setVideo(response.output_video_url);
+        URL.revokeObjectURL(localUrl);
+      }
       setTelemetry(telemetryPointsToRadar(response.telemetry));
       setUploadProgress(100);
     } catch (error) {

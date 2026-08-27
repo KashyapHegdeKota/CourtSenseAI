@@ -30,7 +30,7 @@ export interface TelemetryPoint {
 
 export interface AnalyzeResponse {
   status: "success" | string;
-  output_video: string;
+  output_video_url: string;
   telemetry: TelemetryPoint[];
 }
 

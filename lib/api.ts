@@ -31,11 +31,6 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function resolveBackendUrl(path?: string): string | undefined {
-  if (!path) return undefined;
-  try { return new URL(path, `${API_BASE}/`).toString(); } catch { return path; }
-}
-
 export function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
   return requestJson<HealthResponse>(`${API_BASE}/health`, { cache: "no-store", signal });
 }
