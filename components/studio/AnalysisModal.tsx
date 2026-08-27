@@ -14,7 +14,7 @@ export function AnalysisModal({ onClose, onAnalysisComplete }: AnalysisModalProp
   const [analyzing, setAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
-  const progressTimerRef = useRef<number>();
+  const progressTimerRef = useRef<number | undefined>(undefined);
 
   useEffect(() => () => {
     if (progressTimerRef.current !== undefined) window.clearInterval(progressTimerRef.current);
