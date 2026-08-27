@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Activity, BrainCircuit, FileVideo, Radio, Upload, X } from "lucide-react";
-import { analyzeVideo, getHealth, telemetryPointsToRadar } from "../../lib/api";
-import { MOCK_TELEMETRY, type HealthResponse, type Telemetry } from "../../lib/types";
+import { analyzeVideo, getHealth, normalizeOutputVideoUrl, telemetryPointsToRadar } from "../../lib/api";
+import { MOCK_TELEMETRY, type HealthResponse, type Telemetry, type TelemetryPoint } from "../../lib/types";
 import type { SampleMatch } from "../../lib/sample-matches";
 import { PitchRadar, type RadarToggles } from "../radar/PitchRadar";
 import { EventSearch } from "../search/EventSearch";
@@ -31,6 +31,12 @@ export function CourtSenseShell() {
   const [demoError, setDemoError] = useState("");
   const demoRequestRef = useRef<AbortController | null>(null);
   const [toggles, setToggles] = useState<RadarToggles>({ hulls: true, ids: true, vectors: false, heatmap: false });
+
+  const onAnalysisComplete = useCallback(({ videoUrl, telemetry: points }: { videoUrl: string; telemetry: TelemetryPoint[] }) => {
+    setVideo(videoUrl);
+    setTelemetry(telemetryPointsToRadar(points));
+    setCurrentTime(0);
+  }, []);
 
   const refreshHealth = useCallback(() => {
     getHealth().then(setHealth).catch(() => setHealth(null)).finally(() => setHealthChecked(true));
@@ -66,12 +72,13 @@ export function CourtSenseShell() {
     const progressTimer = window.setInterval(() => setUploadProgress((value) => Math.min(92, value + Math.max(1, (92 - value) * .08))), 260);
     try {
       const response = await analyzeVideo(file);
-      if (response.output_video_url) {
-        setVideo(response.output_video_url);
+      const videoUrl = normalizeOutputVideoUrl(response.output_video_url ?? response.output_video);
+      if (videoUrl) {
+        onAnalysisComplete({ videoUrl, telemetry: response.telemetry });
         URL.revokeObjectURL(localUrl);
-      }
-      setTelemetry(telemetryPointsToRadar(response.telemetry));
+      } else setTelemetry(telemetryPointsToRadar(response.telemetry));
       setUploadProgress(100);
+      window.setTimeout(() => { setUploadOpen(false); setUploadProgress(0); }, 500);
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Analysis failed. The local video preview is still available.");
     } finally {

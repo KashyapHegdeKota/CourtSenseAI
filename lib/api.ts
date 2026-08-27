@@ -35,6 +35,21 @@ export function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
   return requestJson<HealthResponse>(`${API_BASE}/health`, { cache: "no-store", signal });
 }
 
+export function normalizeOutputVideoUrl(path?: string): string | undefined {
+  if (!path) return undefined;
+  try {
+    const url = new URL(path, `${API_BASE}/`);
+    if (url.protocol === "http:") {
+      const api = new URL(API_BASE);
+      url.protocol = "https:";
+      if (url.pathname.startsWith("/static/videos/")) url.host = api.host;
+    }
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 export function searchEvents(query: string, topK = 3, signal?: AbortSignal): Promise<SearchResponse> {
   const params = new URLSearchParams({ query, top_k: String(topK) });
   return requestJson<SearchResponse>(`${API_BASE}/search_events?${params}`, { cache: "no-store", signal });
