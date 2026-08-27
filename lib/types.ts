@@ -1,5 +1,40 @@
-export type HealthStatus = { status?: string; gpu?: boolean; device?: string; faiss_vector_count?: number; [key: string]: unknown };
-export type PlayerTelemetry = {
+export interface HealthResponse {
+  status: "healthy" | string;
+  device: "cpu" | "cuda:0" | string;
+  model_loaded: boolean;
+  faiss_ready: boolean;
+}
+
+export interface SearchResultItem {
+  index_id: number;
+  video_path: string;
+  frame_idx: number;
+  timestamp_sec: number;
+  active_players: number;
+  similarity_score: number;
+}
+
+export interface SearchResponse {
+  query: string;
+  total_results: number;
+  results: SearchResultItem[];
+}
+
+export interface TelemetryPoint {
+  frame: number;
+  track_id: number;
+  team_id: number;
+  pitch_x: number;
+  pitch_y: number;
+}
+
+export interface AnalyzeResponse {
+  status: "success" | string;
+  output_video: string;
+  telemetry: TelemetryPoint[];
+}
+
+export interface PlayerTelemetry {
   id: string | number;
   team: "A" | "B" | string;
   x: number;
@@ -8,33 +43,30 @@ export type PlayerTelemetry = {
   distance_m: number;
   vx?: number;
   vy?: number;
-};
+}
 
-export type TelemetryFrame = {
-  frame?: number;
-  time_sec?: number;
+export interface TelemetryFrame {
+  frame: number;
+  time_sec: number;
   players: PlayerTelemetry[];
-};
+}
 
-export type Telemetry = {
+export interface Telemetry {
   duration_sec?: number;
   fps?: number;
   players?: PlayerTelemetry[];
   frames?: TelemetryFrame[];
-  [key: string]: unknown;
-};
-
-export type AnalyzeResponse = {
-  annotated_video_url?: string;
-  video_url?: string;
-  video_path?: string;
-  telemetry_json?: Telemetry | string;
-  [key: string]: unknown;
-};
-export type SearchEvent = { frame?: number; timestamp?: number | string; confidence?: number; label?: string; [key: string]: unknown };
-export type SearchResponse = SearchEvent[] | { results: SearchEvent[]; [key: string]: unknown };
+}
 
 export const MOCK_TELEMETRY: Telemetry = {
-  duration_sec: 94.2, fps: 25,
-  players: Array.from({ length: 14 }, (_, i) => ({ id: i + 1, team: i < 7 ? 'A' : 'B', x: 12 + ((i * 17) % 80), y: 12 + ((i * 29) % 72), speed_kmh: 8 + ((i * 7) % 24), distance_m: 4200 + i * 183 })),
+  duration_sec: 94.2,
+  fps: 25,
+  players: Array.from({ length: 14 }, (_, index) => ({
+    id: index + 1,
+    team: index < 7 ? "A" : "B",
+    x: 12 + ((index * 17) % 80),
+    y: 12 + ((index * 29) % 52),
+    speed_kmh: 8 + ((index * 7) % 24),
+    distance_m: 4200 + index * 183,
+  })),
 };

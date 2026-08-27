@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://courtsense-ai-studio.adraks.chatgpt.site"),
   title: "CourtSense AI | Tactical intelligence",
   description: "See the whole game.",
   openGraph: { title: "CourtSense AI", description: "See the whole game.", images: ["/og.png"], type: "website" },
