@@ -21,6 +21,7 @@ def train_sports_yolo():
         batch=64,               # A100 handles large batch sizes easily
         device=0,
         workers=16,             # Multithreaded PyTorch DataLoader workers
+        cache = "ram",
         amp=True,               # Automatic mixed precision
         optimizer="AdamW",
         lr0=1e-3,
